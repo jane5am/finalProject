@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+  <mapper namespace="boardDAO">
+   	<!-- MAPPER 파일은 SQL문장을 관리하는 파일이다
+   		namespace : 맵퍼파일끼리 구분하는 이름/ 다른 Mapper파일과 이름이 중복되어서는 안된다
+   	 	<select> <insert> <update> <delete> 등 쿼리문에 대한 태그가 존재
+   	 	태그들에게 id를 부여하여 외부에서 호출할 때 "맵퍼이름.id" 로 탐색
+   	 	<select id="">
+   	 	매퍼에 쓰는 쿼리문은 실제 디벨로퍼에서도 실행이되어야한다. 안그러면 에러난다
+   	 -->
+
+   	 <!-- DAO파일의 mybatis.selectList("rentDAO.getMovieList", 여기) 이문장의 여기에 쓸 데이터가 있으면 매퍼에도 아래 타입을 지정해줘야한다
+   		 parameterType="" : 쿼리문장을 실행할 때 외부로부터 받은 필요한 데이터
+   	 	  resultType=""   : 쿼리문장을 실행할 때 출력되는 결과데이터
+   	 	  파일 경로를 넣어야하는데 길면 mybatis-config 에서 지정해주는 것
+   	  -->
+   	    
+   	<!-- 글저장 -->
+	<insert id="savePost" parameterType="board">
+     INSERT INTO write_KnowBoard (SEQ, R_SEQ, TITLE, WRITER, USERID, CONTENT, POSTINGDATE, SUBJECT, PICTURE, HITS , STATE)
+     VALUES ( TB_KNOWBOARD_SEQ.NEXTVAL , 0, #{title}, #{writer}, 'userId', #{content}, sysdate, #{subject}, 'picture', 0, 'Y' )
+		<selectKey keyProperty="seq" resultType="Int" order="AFTER">
+			SELECT MAX(seq) FROM write_KnowBoard
+		</selectKey>
+	</insert>
+
+
+	<!-- 글 상세 불러오기 -->
+	<select id="getPost" parameterType="board" resultType="board">
+  		SELECT * FROM write_KnowBoard
+ 		WHERE SEQ = #{seq}
+	</select>
+	
+	<!-- 글 삭제 -->
+	<select id="deletePost" parameterType="board" resultType="board">
+  		UPDATE write_KnowBoard
+ 			SET STATE = 'N'
+ 		WHERE SEQ = #{seq}
+	</select>
+	
+	<!-- 글 수정 -->
+		<select id="modifyPost" parameterType="modifyboard" resultType="modifyboard" > 
+  		INSERT INTO  mod_KnowBoard ( CNT , SEQ, R_SEQ, R_TITLE, R_CONTENT, R_REPOSTINGTDATE, R_SUBJECT, R_PICTURE )
+  			<choose>
+				<when test='R_SEQ = 0'>
+				SELECT TB_MOD_KNOWBOARD_SEQ.NEXTVAL, SEQ, 1, TITLE, CONTENT, POSTINGDATE, SUBJECT, PICTURE
+				</when>
+				<otherwise>
+				SELECT TB_MOD_KNOWBOARD_SEQ.NEXTVAL, SEQ, (R_SEQ + 1), TITLE, CONTENT, POSTINGDATE, SUBJECT, PICTURE
+				</otherwise>
+			</choose>
+			FROM write_KnowBoard 
+			WHERE SEQ = #{seq}
+		</select>  
+		
+		
+	  	<!-- 글 수정 업데이트-->
+	  	<select id="updatePost" parameterType="board">
+			UPDATE write_KnowBoard
+			<choose>
+				<when test='R_SEQ = 0'>
+				SET R_SEQ = 1, TITLE = #{title} , CONTENT = #{content}, SUBJECT = #{subject}
+				</when>
+				<otherwise>
+				SET R_SEQ = R_SEQ + 1, TITLE = #{title} , CONTENT = #{content}, SUBJECT = #{subject}
+				</otherwise>
+			</choose>
+			WHERE seq = #{seq}
+	  	</select>
+
+	<!-- 글 목록보기 -->
+<!-- 	<select id="getPostlist2" parameterType="board" resultType="board"> -->
+<!-- 		SELECT * -->
+<!-- 		 FROM write_KnowBoard -->
+<!-- 		 WHERE state = 'Y' -->
+<!-- 		ORDER BY seq DESC -->
+<!-- 	</select> -->
+	
+	<!-- 글 목록보기 페이징 / 오라클 limit-->
+	<select id="getPostlistPaging" parameterType="board" resultType="board">
+		SELECT *
+		 FROM  (
+		 	SELECT rownum as rn, e.*
+		 	FROM (
+		 		SELECT *
+				 FROM write_KnowBoard
+				 WHERE state = 'Y'
+				ORDER BY seq DESC
+		 	)e
+		 	
+		 ) 
+		 WHERE rn BETWEEN #{startPage} AND #{endPage}
+	</select>
+	
+	<!-- 글 전체보기 페이징X-->
+	<select id="getPostlist" parameterType="String" resultType="board">
+ 		SELECT *
+		 FROM write_KnowBoard
+		 WHERE state = 'Y'
+		<choose>
+			<when test="_parameter.equals('another')">
+			AND subject NOT IN ( 'JavaScript', 'python', 'C/C++', 'Java', 'PHP', 'C#', 'Visual development tools', 'Swift','Kotlin','Go' ,'Ruby')
+			</when>
+			<otherwise>
+			AND subject = #{value}
+			</otherwise>
+		</choose>
+		ORDER BY seq DESC
+	</select>
+	
+	<!-- 글 전체보기 페이징X - 말머리검색 전체 보기-->
+	<select id="getPostlistAll" parameterType="board" resultType="board">
+ 		SELECT *
+		 FROM write_KnowBoard
+		 WHERE state = 'Y'
+		ORDER BY seq DESC
+	</select>
+	
+	<!-- getBoardListCount / totalCount 이렇게 별칭쓰면 자동으로 vo에 들어가게 해줌-->
+   	 <select id="getBoardListCount" resultType="page">
+   		 SELECT count(*) AS totalCount FROM write_KnowBoard
+   	 </select>
+   	 
+   	 <!-- 지식게시판 - 글 검색하기 페이징 -->
+	<select id="knowBLsearch" parameterType="hashmap" resultType="board">
+		SELECT * 
+		 FROM write_KnowBoard
+		 WHERE state = 'Y'
+			<if test=" searchtype eq 'title'.toString()">
+			 AND ( title like '%${keyword}%' OR title like UPPER('%${keyword}%') OR title like LOWER('%${keyword}%') )
+			</if>
+			<if test=" searchtype eq 'content'.toString()">
+			 AND ( content like '%${keyword}%' OR content like UPPER('%${keyword}%') OR content like LOWER('%${keyword}%') )
+			</if>
+			<if test=" searchtype eq 'writer'.toString()">
+			 AND ( writer like '%${keyword}%' OR writer like UPPER('%${keyword}%') OR writer like LOWER('%${keyword}%') )
+			</if>
+		 ORDER BY seq DESC
+	</select>
+   	 
+   	<!-- 글 상세보기 -->
+  	<select id="getBoard" parameterType="board" resultType="board">
+		SELECT *
+			FROM write_KnowBoard
+		WHERE seq = #{seq}
+  	</select>
+  	
+  	<!-- 조회수 증가 -->
+  	<select id="updatehits" parameterType="board">
+		UPDATE write_KnowBoard
+		SET HITS = HITS +1
+		WHERE seq = #{seq}
+  	</select>
+  	
+  	
+  	<!-- 지식게시판 - 댓글 저장 -->
+	<select id="saveComment" parameterType="know_Comment" > 
+  		INSERT INTO commentWrite_KnowBoard (COMMENT_ID, SEQ, NICKNAME, COMMENT_CONTENT, COMMENT_DATE, COMMENT_STATE)
+  		VALUES ( TB_COM_WRI_KNOWBOARD_SEQ.NEXTVAL , #{seq}, #{nickname}, #{comment_content}, sysdate, 'Y' )
+	</select>  
+	
+	<!-- 지식게시판 - 댓글 목록가져오기 -->
+	 <select id="getCommentList" parameterType="know_Comment" resultType="know_Comment">
+   	 	SELECT * 
+   	 	FROM commentWrite_KnowBoard
+   	 	WHERE seq = #{seq}
+   	 	AND COMMENT_STATE = 'Y'
+   	 	ORDER BY COMMENT_ID
+   	 </select>
+
+	<!-- 지식게시판 - 댓글 방금 댓글 쓴 거 가져오기 -->
+	 <select id="getWriteComment" parameterType="know_Comment" resultType="know_Comment">
+	 	SELECT * 
+   	 	FROM commentWrite_KnowBoard
+   	 	WHERE seq = #{seq} 
+        AND COMMENT_ID = (SELECT MAX(COMMENT_ID) FROM commentWrite_KnowBoard WHERE seq = #{seq})
+   	 	AND COMMENT_STATE = 'Y'
+   	 	ORDER BY COMMENT_ID DESC
+   	 </select>
+
+
+	<!-- 지식게시판 - 말머리 검색  -->
+	 <select id="searchSubject" parameterType="String" resultType="board">
+	 	SELECT * 
+   	 	FROM write_KnowBoard
+		WHERE subject = #{value}
+		AND state = 'Y'
+		ORDER BY seq DESC
+   	 </select>
+   	 
+ 	<!-- 댓글 삭제 -->
+	<select id="deleteComment" parameterType="know_Comment" resultType="know_Comment">
+  		UPDATE COMMENTWRITE_KNOWBOARD
+ 			SET COMMENT_STATE = 'N'
+ 		WHERE comment_id = #{comment_id}
+	</select>
+	
+<!--  	댓글 수정 -->
+	<select id="modifyComment" parameterType="know_Comment" resultType="know_Comment">
+  		UPDATE COMMENTWRITE_KNOWBOARD
+ 			SET COMMENT_CONTENT = #{comment_content}
+		WHERE comment_id = #{comment_id}
+	</select>
+	
+	<!-- 북마크 저장 -->
+	<select id="saveBookmark" parameterType="bookmark" resultType="bookmark">
+  		INSERT INTO BOOKMARK (BOOKMARK_SEQ, BOARDNUMBER, SEQ)
+		VALUES (TB_BOOKMARK.NEXTVAL, #{boardNumber}, #{seq} )
+	</select>
+	
+	<!-- 북마크 저장취소-->
+	<select id="saveCancelBookmark" parameterType="bookmark" resultType="bookmark">
+  		DELETE FROM BOOKMARK 
+  			WHERE boardNumber = #{boardNumber}
+  			AND seq = #{seq}
+	</select>
+	
+	<!-- 북마크 체크 -->
+	<select id="checkBookmark" parameterType="bookmark" resultType="bookmark">
+  		SELECT *
+  		FROM BOOKMARK
+  		WHERE seq = #{seq}
+	</select>
+	
+	<!-- 북마크 목록 가져오기 -->
+	<select id="getBookmark" parameterType="bookmark" resultType="bookmark">
+  		SELECT *
+  		FROM BOOKMARK
+		ORDER BY bookmark_seq DESC
+	</select>
+
+	<!-- 임시저장하기 -->
+	<select id="saveTempPost" parameterType="saveTemp" resultType="saveTemp">
+		<if test="board_num == 1"> <!-- 지식게시판 -->
+			INSERT INTO saveTemp (BOARD_NUM , SEQ, TITLE, WRITER, CONTENT, POSTINGDATE, SUBJECT, PICTURE)
+			VALUES ( #{board_num}, TB_SAVETEMP_SEQ.NEXTVAL , #{title}, 'writer', #{content}, sysdate, #{subject}, 'picture')
+		</if>
+		<if test="board_num == 2">  <!-- 스터디게시판 -->
+			INSERT INTO saveTemp (BOARD_NUM, SEQ, RECRUITMENT, TITLE, WRITER, CONTENT, POSTINGDATE, TOPIC, WAY, LANGUAGE , PEOPLENUM, PICTURE)
+			VALUES (  #{board_num}, TB_SAVETEMP_SEQ.NEXTVAL , #{recruitment, jdbcType=VARCHAR} , #{title}, 'writer', #{content}, sysdate, #{topic, jdbcType=VARCHAR}, #{way , jdbcType=VARCHAR}, #{language, jdbcType=VARCHAR} , #{peopleNum, jdbcType=VARCHAR}, 'picture' )
+		</if>
+	</select>
+
+	<!-- 임시저장 목록 가져오기 -->
+	<select id="getTempList" parameterType="saveTemp" resultType="saveTemp">
+  		SELECT *
+  		FROM saveTemp
+  		<if test="board_num == 1"> <!-- 지식게시판 -->
+  			WHERE BOARD_NUM = 1
+  		</if>
+  		<if test="board_num == 2"> <!-- 스터디게시판 -->
+  			WHERE BOARD_NUM = 2
+  		</if>
+		ORDER BY SEQ DESC
+	</select>
+	
+	<!-- 임시저장 목록 갯수 세기 -->
+	<select id="countTempPost" parameterType="saveTemp" resultType="int">
+  		SELECT count(*)
+  		FROM saveTemp
+  		<if test="board_num == 1"> <!-- 지식게시판 -->
+  			WHERE BOARD_NUM = 1
+  		</if>
+  		<if test="board_num == 2"> <!-- 스터디게시판 -->
+  			WHERE BOARD_NUM = 2
+  		</if>
+		ORDER BY SEQ DESC
+	</select>
+
+  </mapper>

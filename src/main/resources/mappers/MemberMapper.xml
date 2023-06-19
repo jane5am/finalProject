@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+  <!-- @@8 -->
+  <mapper namespace="MemberDAO">
+  		<insert id="userInsert" parameterType="member">
+  			INSERT INTO member 
+  			VALUES (#{userId}, #{userPass}, #{nickname} )
+  		</insert>
+  		
+		<select id="idCheck" parameterType="member" resultType="member">
+			SELECT *
+				From member
+			WHERE userid = #{userId} AND userpass = #{userPass}
+		</select>
+		
+		<select id="memberInfo" resultType="member">
+			SELECT * FROM member
+		</select>
+   </mapper>

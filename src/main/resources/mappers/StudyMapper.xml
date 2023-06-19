@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+  <mapper namespace="studyDAO">
+  
+   	<!-- 글저장 -->
+	<insert id="saveStudyPost" parameterType="studyBoard">
+     INSERT INTO write_StudyBoard (SEQ, R_SEQ, RECRUITMENT, TITLE, WRITER, CONTENT, POSTINGDATE, TOPIC, WAY , LANGUAGE, PEOPLENUM, PICTURE, HITS, STATE )
+     VALUES ( TB_STUDYBOARD_SEQ.NEXTVAL , 0, '모집중' , #{title}, 'writer', #{content}, sysdate, #{topic}, #{way , jdbcType=VARCHAR}, #{language} , #{peopleNum}, 'picture', 0, 'Y' )
+		<selectKey keyProperty="seq" resultType="Int" order="AFTER">
+			SELECT MAX(seq) FROM write_StudyBoard
+		</selectKey>
+	</insert>
+
+
+	<!-- 글 상세 불러오기 -->
+	<select id="getStudyPost" parameterType="studyBoard" resultType="studyBoard">
+  		SELECT * 
+  		FROM write_StudyBoard
+ 		WHERE SEQ = #{seq}
+	</select>
+	
+	
+	<!-- 페이징 -->
+   	 <select id="getStudyListCount" resultType="page">
+   		 SELECT count(*) AS totalCount FROM write_StudyBoard
+   	 </select>
+	
+	<!-- 글 삭제 --> 
+	<select id="deleteStudyPost" parameterType="studyBoard" resultType="studyBoard">
+  		UPDATE write_StudyBoard
+ 			SET STATE = 'N'
+ 		WHERE SEQ = #{seq}
+	</select>
+	
+<!-- 글 수정 -->
+<!-- 		<select id="modifyPost" parameterType="modifyboard" resultType="modifyboard" >  -->
+<!--   		INSERT INTO  mod_KnowBoard ( CNT , SEQ, R_SEQ, R_TITLE, R_CONTENT, R_REPOSTINGTDATE, R_SUBJECT, R_PICTURE ) -->
+<!--   			<choose> -->
+<!-- 				<when test='R_SEQ = 0'> -->
+<!-- 				SELECT TB_MOD_KNOWBOARD_SEQ.NEXTVAL, SEQ, 1, TITLE, CONTENT, POSTINGDATE, SUBJECT, PICTURE -->
+<!-- 				</when> -->
+<!-- 				<otherwise> -->
+<!-- 				SELECT TB_MOD_KNOWBOARD_SEQ.NEXTVAL, SEQ, (R_SEQ + 1), TITLE, CONTENT, POSTINGDATE, SUBJECT, PICTURE -->
+<!-- 				</otherwise> -->
+<!-- 			</choose> -->
+<!-- 			FROM write_KnowBoard  -->
+<!-- 			WHERE SEQ = #{seq} -->
+<!-- 		</select>   -->
+		
+		
+<!-- 	  	글 수정 업데이트 -->
+	  	<select id="modifyStudyPost" parameterType="studyBoard">
+			UPDATE write_StudyBoard
+			SET title = #{title}, topic = #{topic}, way = #{way , jdbcType=VARCHAR}, language = #{language}, peopleNum = #{peopleNum} , content = #{content}
+			WHERE seq = #{seq}
+	  	</select>
+
+	<!-- 글 목록보기 -->  
+ <!-- 	<select id="getPostlist2" parameterType="board" resultType="board"> --> 
+<!-- 		SELECT * -->
+<!-- 		 FROM write_KnowBoard --> 
+<!-- 		 WHERE state = 'Y' -->
+ <!-- 		ORDER BY seq DESC --> 
+<!-- 	</select> -->
+	
+<!-- 글 목록보기 페이징 / 오라클 limit-->
+	<select id="getStudyPostlistPaging" parameterType="studyBoard" resultType="studyBoard">
+		SELECT *
+		 FROM  (
+		 	SELECT rownum as rn, e.*
+		 	FROM (
+		 		SELECT *
+				 FROM write_StudyBoard
+				 WHERE state = 'Y'
+				ORDER BY seq DESC
+		 	)e
+		 	
+		 ) 
+		 WHERE rn BETWEEN #{startPage} AND #{endPage}
+	</select>
+	
+	<!-- 글 전체보기 페이징X--> 
+	<select id="getStudyPostlist" parameterType="String" resultType="studyBoard">
+ 		SELECT *
+		 FROM write_StudyBoard
+		 WHERE state = 'Y'
+		AND recruitment = #{value}
+		ORDER BY seq DESC
+	</select>
+	
+	<!-- 글 전체보기 페이징X - 말머리검색 전체 보기-->
+	<select id="getStudyPostlistAll" parameterType="studyBoard" resultType="studyBoard">
+ 		SELECT *
+		 FROM write_StudyBoard
+		 WHERE state = 'Y'
+		ORDER BY seq DESC
+	</select>
+	
+	<!-- getBoardListCount / totalCount 이렇게 별칭쓰면 자동으로 vo에 들어가게 해줌--> 
+<!--    	 <select id="getBoardListCount" resultType="page"> -->
+<!--    		 SELECT count(*) AS totalCount FROM write_KnowBoard -->
+<!--    	 </select> -->
+   	 
+<!-- 제목, 내용, 작성자 검색-->
+	<select id="studyBLsearch" parameterType="hashmap" resultType="studyBoard">
+		SELECT * 
+		 FROM write_StudyBoard
+		 WHERE state = 'Y'
+			<if test=" searchtype eq 'title'.toString()">
+			 AND ( title like '%${keyword}%' OR title like UPPER('%${keyword}%') OR title like LOWER('%${keyword}%') )
+			</if>
+			<if test=" searchtype eq 'content'.toString()">
+			 AND ( content like '%${keyword}%' OR content like UPPER('%${keyword}%') OR content like LOWER('%${keyword}%') )
+			</if>
+			<if test=" searchtype eq 'writer'.toString()">
+			 AND ( writer like '%${keyword}%' OR writer like UPPER('%${keyword}%') OR writer like LOWER('%${keyword}%') )
+			</if>
+		 ORDER BY seq DESC
+	</select>
+   	 
+<!--    	글 상세보기 -->
+  	<select id="getStudyBoard" parameterType="studyBoard" resultType="studyBoard">
+		SELECT *
+			FROM write_StudyBoard
+		WHERE seq = #{seq}
+  	</select>
+  	
+ 	<!-- 조회수 증가 -->
+  	<select id="updateStudyhits" parameterType="studyBoard">
+		UPDATE write_StudyBoard
+		SET HITS = HITS +1
+		WHERE seq = #{seq}
+  	</select>
+  	
+  	
+  	<!-- 지식게시판 - 댓글 저장 --> 
+<!-- 	<select id="saveComment" parameterType="know_Comment" >  -->
+<!--   		INSERT INTO commentWrite_KnowBoard (COMMENT_ID, SEQ, NICKNAME, COMMENT_CONTENT, COMMENT_DATE, COMMENT_STATE) -->
+<!--   		VALUES ( TB_COM_WRI_KNOWBOARD_SEQ.NEXTVAL , #{seq}, #{nickname}, #{comment_content}, sysdate, 'Y' ) -->
+<!-- 	</select>   -->
+	
+	<!-- 지식게시판 - 댓글 목록가져오기 --> 
+	 <select id="getStudyCommentList" parameterType="study_Comment" resultType="study_Comment">
+   	 	SELECT * 
+   	 	FROM commentWrite_StudyBoard
+   	 	WHERE seq = #{seq}
+   	 	AND COMMENT_STATE = 'Y'
+   	 	ORDER BY COMMENT_ID
+   	 </select>
+
+	<!-- 지식게시판 - 댓글쓴 거 가져오기 --> 
+<!-- 	 <select id="getWriteComment" parameterType="know_Comment" resultType="know_Comment"> -->
+<!-- 	 	SELECT *  -->
+<!--    	 	FROM commentWrite_KnowBoard -->
+<!--    	 	WHERE seq = #{seq}  -->
+<!--         AND COMMENT_ID = (SELECT MAX(COMMENT_ID) FROM commentWrite_KnowBoard WHERE seq = #{seq}) -->
+<!--    	 	AND COMMENT_STATE = 'Y' -->
+<!--    	 	ORDER BY COMMENT_ID DESC -->
+<!--    	 </select> -->
+
+
+	<!-- 지식게시판 - 말머리 검색  -->
+<!-- 	 <select id="searchSubject" parameterType="String" resultType="board"> -->
+<!-- 	 	SELECT *  -->
+<!--    	 	FROM write_KnowBoard -->
+<!-- 		WHERE subject = #{value} -->
+<!-- 		AND state = 'Y' -->
+<!-- 		ORDER BY seq DESC -->
+<!--    	 </select> -->
+   	 
+	<!-- 댓글 삭제 --> 
+<!-- 	<select id="deleteComment" parameterType="know_Comment" resultType="know_Comment"> -->
+<!--   		UPDATE COMMENTWRITE_KNOWBOARD -->
+<!--  			SET COMMENT_STATE = 'N' -->
+<!--  		WHERE comment_id = #{comment_id} -->
+<!-- 	</select> -->
+	
+ <!--  	댓글 수정 --> 
+<!-- 	<select id="modifyComment" parameterType="know_Comment" resultType="know_Comment"> -->
+<!--   		UPDATE COMMENTWRITE_KNOWBOARD -->
+<!--  			SET COMMENT_CONTENT = #{comment_content} -->
+<!-- 		WHERE comment_id = #{comment_id} -->
+<!-- 	</select> -->
+	
+	<!-- 북마크 저장 --> 
+<!-- 	<select id="saveBookmark" parameterType="bookmark" resultType="bookmark"> -->
+<!--   		INSERT INTO BOOKMARK (BOOKMARK_SEQ, BOARDNUMBER, SEQ) -->
+<!-- 		VALUES (TB_BOOKMARK.NEXTVAL, #{boardNumber}, #{seq} ) -->
+<!-- 	</select> -->
+	
+	<!-- 북마크 저장취소-->
+<!-- 	<select id="saveCancelBookmark" parameterType="bookmark" resultType="bookmark"> -->
+<!--   		DELETE FROM BOOKMARK  -->
+<!--   			WHERE boardNumber = #{boardNumber} -->
+<!--   			AND seq = #{seq} -->
+<!-- 	</select> -->
+	
+	<!-- 북마크 체크 --> 
+<!-- 	<select id="checkBookmark" parameterType="bookmark" resultType="bookmark"> -->
+<!--   		SELECT * -->
+<!--   		FROM BOOKMARK -->
+<!--   		WHERE seq = #{seq} -->
+<!-- 	</select> -->
+	
+	<!-- 북마크 목록 가져오기 -->
+<!-- 	<select id="getBookmark" parameterType="bookmark" resultType="bookmark"> -->
+<!--   		SELECT * -->
+<!--   		FROM BOOKMARK -->
+<!-- 		ORDER BY bookmark_seq DESC -->
+<!-- 	</select> -->
+
+	
+
+  </mapper>
